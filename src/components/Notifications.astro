@@ -1,0 +1,192 @@
+---
+import Markdown from "@mashehu/astropub-md/Markdown";
+import { file } from "@scripts/i18n.ts";
+import { Icon } from "astro-icon/components";
+
+const { lang } = Astro.params;
+const { frontmatter } = await file("ostalo", lang);
+---
+
+<notifications-button data-success="Uspešno">
+  <button id="notification-button" aria-disabled="true">
+    <Icon class="disabled" name="mdi:notifications-active" />
+    <span class="disabled">{frontmatter.enable_notifications}</span>
+    <Icon class="enabled" name="mdi:notifications-off" />
+    <span class="enabled">{frontmatter.disable_notifications}</span>
+  </button>
+
+  <div id="in-app" popover>
+    <button popovertarget="in-app" popovertargetaction="hide">
+      <Icon name="mdi:close" />
+    </button>
+    <Markdown of={frontmatter.notifications_in_app} />
+  </div>
+
+  <div id="safari" popover>
+    <button popovertarget="safari" popovertargetaction="hide">
+      <Icon name="mdi:close" />
+    </button>
+    <Markdown of={frontmatter.notifications_safari} />
+  </div>
+</notifications-button>
+
+<script>
+  import { subscribe, subscribed, unsubscribe } from "@scripts/sw.ts";
+
+  const APP_TOKENS = [
+    /\bFB[\w_]+\/Messenger/i,
+    /\bInstagram\b/i,
+    /\bFBAN\/|\bFBAV\/|\bFB_IAB\//i,
+    /musical_ly|\btrill_|AppName\/ultralite/i,
+    /BytedanceWebview/i,
+    /\bBarcelona\b/i,
+    /LinkedInApp/i,
+    /Snapchat/i,
+    /\bTwitter/i,
+    /Telegram/i,
+  ];
+
+  class Notifications extends HTMLElement {
+    button: HTMLButtonElement;
+    in_app: HTMLDivElement;
+    safari: HTMLDivElement;
+
+    async toggle() {
+      if (await subscribed()) {
+        await unsubscribe();
+        this.button.classList.toggle("enabled", !(await subscribed()));
+      } else {
+        try {
+          await subscribe();
+          this.button.classList.toggle("enabled", !(await subscribed()));
+          alert(this.dataset.success!);
+        } catch (e) {
+          alert(e);
+        }
+      }
+    }
+
+    async setup() {
+      this.button.ariaDisabled = null;
+
+      const ua = window.navigator.userAgent;
+      const in_app = APP_TOKENS.some((re) => re.test(ua));
+
+      const IOS = /iPhone|iPad|iPod/.test(ua);
+      const standalone = window.matchMedia(
+        "(display-mode: standalone)",
+      ).matches;
+
+      if (in_app) {
+        this.button.classList.toggle("enabled", true);
+        this.button.onclick = () => this.in_app.showPopover();
+        return;
+      }
+
+      if (IOS && !standalone) {
+        this.button.classList.toggle("enabled", true);
+        this.button.onclick = () => this.safari.showPopover();
+        return;
+      }
+
+      this.button.classList.toggle("enabled", !(await subscribed()));
+      this.button.onclick = () => this.toggle();
+    }
+
+    constructor() {
+      super();
+
+      this.button = document.querySelector("#notification-button")!;
+      this.in_app = document.querySelector("#in-app")!;
+      this.safari = document.querySelector("#safari")!;
+
+      this.setup();
+    }
+  }
+
+  customElements.define("notifications-button", Notifications);
+</script>
+
+<style>
+  notifications-button button[aria-disabled] {
+    display: none;
+  }
+
+  notifications-button > button {
+    all: unset;
+    line-height: normal;
+    cursor: pointer;
+    user-select: none;
+
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-block: 1rem;
+    padding: 0.5rem 1rem;
+
+    font-weight: bold;
+    color: white;
+  }
+
+  notifications-button > button:hover {
+    background-color: var(--primary-dark);
+  }
+
+  notifications-button span {
+    font-size: 0.75rem;
+    width: min-content;
+  }
+
+  notifications-button > button.enabled {
+    background-color: var(--primary);
+    color: var(--on-primary);
+  }
+  notifications-button > button.enabled > :global(:not(.disabled)) {
+    display: none;
+  }
+
+  notifications-button > button:not(.enabled) {
+    background-color: var(--secondary-background);
+    color: var(--on-secondary);
+  }
+  notifications-button > button:not(.enabled) > :global(:not(.enabled)) {
+    display: none;
+  }
+
+  [popover] {
+    position: fixed;
+    margin: auto;
+    padding: 2rem;
+    border-radius: 1rem;
+    width: 50rem;
+    max-width: calc(100% - 2rem);
+    color: var(--on-background);
+
+    &:before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    &:after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: var(--background);
+    }
+
+    button {
+      margin-left: auto;
+      display: block;
+      margin-bottom: 1rem;
+    }
+
+    :where(a, button):hover {
+      filter: opacity(0.5);
+    }
+  }
+</style>

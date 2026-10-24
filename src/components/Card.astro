@@ -1,0 +1,94 @@
+---
+import { file } from "@scripts/i18n";
+import { Picture } from "astro:assets";
+import { type CollectionEntry } from "astro:content";
+import FormattedDate from "./FormattedDate.astro";
+import Live from "./Live.astro";
+
+type Props = CollectionEntry<"vesti"> & { lang: string; link: string };
+
+const { body, data, id, link, lang } = Astro.props;
+const { lang: expectedLang } = Astro.params;
+const { frontmatter } = await file("ostalo", expectedLang);
+---
+
+<article class="card">
+  <a href={link} class="clear">
+    {data.live && <Live>{frontmatter.live}</Live>}
+    <Picture
+      transition:name={id}
+      class="thumbnail"
+      formats={["avif", "webp"]}
+      width={1020}
+      src={data.heroImage}
+      alt=""
+    />
+
+    {expectedLang !== "root" && lang !== expectedLang && (
+      <span class="untranslated">{frontmatter.nije_prevedeno}</span>
+    )}
+    <div class="content">
+      <FormattedDate date={data.pubDate} />
+      <h3>{data.title}</h3>
+      <p class="subtitle">{data.description ?? body}</p>
+    </div>
+  </a>
+</article>
+
+<style>
+  a {
+    position: relative;
+    background: var(--card-background);
+    cursor: pointer;
+    border-radius: 10px;
+
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
+    transition: box-shadow 0.3s;
+  }
+
+  a:hover {
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  }
+
+  h3 {
+    font-size: 1.5rem;
+  }
+
+  .thumbnail {
+    aspect-ratio: 3/2;
+    object-fit: cover;
+  }
+
+  .content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    padding: 1rem;
+  }
+
+  .subtitle {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .untranslated {
+    background-color: var(--primary-dark);
+    color: var(--on-primary);
+    padding: 0.1rem 1rem;
+    margin-top: 0.5rem;
+    border-radius: 0.2rem;
+  }
+
+  .live {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1;
+  }
+</style>

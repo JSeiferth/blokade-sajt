@@ -1,0 +1,255 @@
+---
+import { Icon } from "astro-icon/components";
+import { ICON_SIZE_LG } from "consts";
+import "leaflet/dist/leaflet.css";
+
+interface Props {
+  data: any;
+}
+
+const { data } = Astro.props;
+---
+
+<div class="center">
+  <astro-map data-map={data}>
+    <div class="map-buttons">
+      <button data-id="locate">
+        <Icon name="mdi:my-location" size={ICON_SIZE_LG} />
+      </button>
+      <button data-id="fullscreen">
+        <Icon name="mdi:fullscreen" size={ICON_SIZE_LG} />
+      </button>
+    </div>
+  </astro-map>
+</div>
+
+<style>
+  .center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  astro-map:not(.fullscreen) {
+    position: relative;
+    max-width: 1000px;
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    aspect-ratio: 16/9;
+    margin-top: 1rem;
+    isolation: isolate;
+  }
+
+  astro-map :global(img) {
+    border-radius: 0;
+  }
+
+  .map-buttons {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  button {
+    background-color: var(--background);
+    color: var(--on-background);
+  }
+
+  button :global(svg) {
+    display: block;
+  }
+
+  .fullscreen {
+    position: fixed !important;
+    z-index: 1000;
+    inset: 0;
+  }
+
+  :global(.single-marker) {
+    background-color: var(--color);
+    border: white 2px solid;
+    color: var(--on-primary);
+    border-radius: 50%;
+    aspect-ratio: 1/1;
+  }
+
+  :global(.cluster-icon) {
+    background-color: hsla(from var(--color) h s l / 50%);
+    color: var(--on-primary);
+    border-radius: 50%;
+    display: grid;
+    place-content: center;
+  }
+
+  :global(.cluster-icon strong) {
+    background-color: var(--color);
+    border-radius: 50%;
+    margin: auto;
+    aspect-ratio: 1/1;
+    width: 28px;
+    display: grid;
+    place-content: center;
+  }
+</style>
+
+<script>
+  import leaflet from "leaflet";
+  import "leaflet.markercluster";
+
+  const color_keys = ["first", "second", "third", "fourth", "fifth"];
+
+  class Mapa extends HTMLElement {
+    #locate: HTMLButtonElement;
+    #fullscreen: HTMLButtonElement;
+
+    markerIcon(color?: string) {
+      return (cluster: leaflet.MarkerCluster) => {
+        return leaflet.divIcon({
+          iconSize: [36, 36],
+          className: `cluster-icon ${color}`,
+          html: "<strong>" + cluster.getChildCount() + "</strong>",
+        });
+      };
+    }
+
+    setup() {
+      const map_data = JSON.parse(this.dataset.map!);
+
+      const colors = new Map<string, any[]>();
+      map_data.markers?.forEach((marker: any) =>
+        colors.set(marker.color ?? "first", [
+          ...(colors.get(marker.color ?? "first") ?? []),
+          marker,
+        ]),
+      );
+
+      const layers = colors.keys().map((key) => {
+        const markers = new leaflet.MarkerClusterGroup({
+          maxClusterRadius: 40,
+          iconCreateFunction: this.markerIcon(`${key}`),
+        });
+
+        colors.get(key)!.forEach((marker: any) =>
+          leaflet
+            .circleMarker([marker.coords_lat, marker.coords_long], {
+              radius: 7,
+              color: window.getComputedStyle(this).getPropertyValue(`--${key}`),
+              fillOpacity: 0.5,
+            })
+            .bindPopup(marker.text)
+            .addTo(markers),
+        );
+        return markers;
+      });
+
+      const getLatLng = async (url: string): Promise<leaflet.LatLng> => {
+        const resp = await fetch(url, {
+          method: "GET",
+        });
+
+        const json = await resp.json();
+
+        return leaflet.latLng([json.lat, json.lon]);
+      };
+
+      if (map_data.track) {
+        map_data.track.forEach(async (track) => {
+          try {
+            const marker = leaflet
+              .marker(await getLatLng(track.address))
+              .setIcon(
+                new leaflet.DivIcon({
+                  iconAnchor: [8, 8],
+                  iconSize: [16, 16],
+                  className: `single-marker ${track.color}`,
+                  html: "<div></div>",
+                }),
+              );
+
+            marker.addTo(map);
+
+            setInterval(async () => {
+              marker.setLatLng(await getLatLng(track.address));
+            }, 60000);
+
+            return marker;
+          } catch (e) {
+            console.log("ERROR: ", e);
+          }
+        });
+      }
+
+      const map = leaflet.map(this, {
+        preferCanvas: true,
+        renderer: leaflet.canvas(),
+        center: leaflet.latLng(map_data.coords_lat, map_data.coords_long),
+        zoom: map_data.zoom,
+        attributionControl: false,
+        layers: [
+          leaflet.tileLayer(
+            "https://services.arcgisonline.com/arcgis/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+            { maxZoom: 16 },
+          ),
+          ...(map_data.layers ?? []).map(JSON.parse).map((layer, idx) =>
+            leaflet.geoJSON(layer, {
+              style: {
+                color: window
+                  .getComputedStyle(this)
+                  .getPropertyValue(`--${color_keys[idx]}`),
+                weight: 5,
+              },
+            }),
+          ),
+          ...layers,
+        ],
+      });
+
+      this.#fullscreen.onclick = () => {
+        if (this.requestFullscreen) {
+          document.fullscreenElement === null
+            ? this.requestFullscreen()
+            : document.exitFullscreen();
+        } else {
+          this.classList.toggle("fullscreen");
+        }
+        map.invalidateSize();
+      };
+
+      this.#locate.onclick = () => map.locate({ setView: true, maxZoom: 16 });
+
+      let located_marker: leaflet.Marker | null = null;
+      let located_circle: leaflet.Circle | null = null;
+      map.on("locationfound", (e: leaflet.LocationEvent) => {
+        located_marker?.remove();
+        located_circle?.remove();
+
+        const radius = e.accuracy;
+        located_marker = leaflet.marker(e.latlng).addTo(map);
+
+        if (radius < 10) return;
+        located_circle = leaflet.circle(e.latlng, { radius }).addTo(map);
+      });
+
+      map.on("locationerror", (e: leaflet.ErrorEvent) => {
+        alert(e.message);
+      });
+    }
+
+    constructor() {
+      super();
+      this.#locate = this.querySelector("[data-id='locate']")!;
+      this.#fullscreen = this.querySelector("[data-id='fullscreen']")!;
+
+      if (typeof this.dataset.map !== "undefined") {
+        this.setup();
+      }
+    }
+  }
+
+  customElements.define("astro-map", Mapa);
+</script>

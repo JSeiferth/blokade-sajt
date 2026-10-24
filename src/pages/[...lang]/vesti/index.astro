@@ -1,0 +1,203 @@
+---
+import Base from "@layouts/Base.astro";
+import { collection, file, langs } from "@scripts/i18n";
+
+import { Picture } from "astro:assets";
+
+import Live from "@components/Live.astro";
+import Notifications from "@components/Notifications.astro";
+import { Markdown } from "@mashehu/astropub-md";
+import FormattedDate from "../../../components/FormattedDate.astro";
+
+const { lang } = Astro.params;
+
+const posts = (await collection("vesti", lang)).filter(
+  ({ data }) => !(data.archived ?? false),
+);
+const { frontmatter } = await file("ostalo", lang);
+
+export async function getStaticPaths() {
+  return langs.map((lang) => ({ params: { lang } }));
+}
+---
+
+<Base
+  title={`${frontmatter.vesti} | ${frontmatter.studenti_u_blokadi}`}
+  description={frontmatter.vesti_description}
+>
+  <section>
+    <div class="flex">
+      <h1>{frontmatter.vesti}</h1>
+      <Notifications />
+    </div>
+    <Markdown of={frontmatter.vesti_opis} />
+  </section>
+  <section>
+    <h2>{frontmatter.najnovija_vest}</h2>
+
+    <a
+      class="latest clear"
+      href={`${lang === "sr" || lang === "root" ? "" : `/${lang}`}/vesti/${posts[0].id}/`}
+    >
+      <Picture
+        transition:name={posts[0].id}
+        formats={["avif", "webp"]}
+        width={720}
+        src={posts[0].data.heroImage}
+        loading="eager"
+        alt=""
+      />
+      <div class="details">
+        {posts[0].data.live && <Live>{frontmatter.live}</Live>}
+        {lang !== "root" && lang !== posts[0].lang && (
+          <p class="untranslated">{frontmatter.nije_prevedeno}</p>
+        )}
+        <h2 class="title">{posts[0].data.title}</h2>
+        <p class="date">
+          <FormattedDate date={posts[0].data.pubDate} />
+        </p>
+        <p class="description">{posts[0].data.description}</p>
+      </div>
+    </a>
+  </section>
+  <section>
+    <ul>
+      {posts
+        .slice(1)
+        .sort((a, b) => b.data.live - a.data.live)
+        .map((post, index) => (
+          <li>
+            <a
+              class="clear"
+              href={`${lang === "sr" || lang === "root" ? "" : `/${lang}`}/vesti/${post.id}/`}
+            >
+              <Picture
+                transition:name={post.id}
+                formats={["avif", "webp"]}
+                width={720}
+                src={post.data.heroImage}
+                loading={index <= 3 ? "eager" : "lazy"}
+                alt=""
+              />
+              <div class="details">
+                {post.data.live && <Live>{frontmatter.live}</Live>}
+                {lang !== "root" && lang !== post.lang && (
+                  <p class="untranslated">{frontmatter.nije_prevedeno}</p>
+                )}
+                <h2 class="title">{post.data.title}</h2>
+                <p class="date">
+                  <FormattedDate date={post.data.pubDate} />
+                </p>
+              </div>
+            </a>
+          </li>
+        ))}
+    </ul>
+  </section>
+</Base>
+
+<style>
+  /* TODO: clean up */
+  h1 {
+    margin-block: 1rem;
+  }
+
+  ul {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    flex-wrap: wrap;
+    gap: 2rem;
+    list-style-type: none;
+    padding: 0;
+  }
+
+  li * {
+    transition: 0.2s ease;
+  }
+
+  li h2 {
+    font-size: 1.5rem;
+  }
+
+  .latest {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+  }
+
+  .latest .details {
+    grid-column: 2;
+  }
+
+  li > h2 {
+    margin-bottom: 1rem;
+  }
+
+  .description {
+    margin-top: 1rem;
+  }
+
+  li .details {
+    margin-top: 1rem;
+  }
+
+  img {
+    margin-bottom: 0.5rem;
+    border-radius: 12px;
+  }
+
+  a {
+    display: block;
+    position: relative;
+  }
+
+  .title {
+    margin: 0;
+    line-height: 1;
+  }
+
+  .date {
+    margin: 0;
+    color: rgb(var(--gray));
+  }
+
+  a:hover .title,
+  a:hover .date {
+    color: var(--primary-text);
+  }
+
+  a:hover img {
+    box-shadow: var(--box-shadow);
+  }
+
+  @media (max-width: 720px) {
+    ul,
+    .latest {
+      gap: 2em;
+      grid-template-columns: 1fr;
+    }
+
+    .latest .details {
+      grid-column: 1;
+    }
+
+    li .details {
+      margin-top: 1rem;
+    }
+  }
+
+  .live {
+    position: absolute;
+    top: 2rem;
+    left: 2rem;
+  }
+
+  .untranslated {
+    background-color: var(--primary-dark);
+    color: var(--on-primary);
+    padding-inline: 0.5rem;
+    border-radius: 0.2rem;
+    margin-bottom: 0.5rem;
+  }
+</style>

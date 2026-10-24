@@ -1,0 +1,218 @@
+---
+import Base from "@layouts/Base.astro";
+
+import { Markdown } from "@mashehu/astropub-md";
+import { type } from "@scripts/collections";
+import { icons, socials } from "@scripts/collections.ts";
+import { collection, entry, file, langs } from "@scripts/i18n";
+import { Icon } from "astro-icon/components";
+import { ICON_SIZE_LG } from "../../consts.ts";
+
+export async function getStaticPaths() {
+  return langs.map((lang) => ({ params: { lang } }));
+}
+
+const { lang } = Astro.params;
+
+const { frontmatter } = await file("ostalo", lang);
+
+// TODO: Duplicate code
+
+const { data: sub } = await entry("linkovi", "studenti_u_blokadi", lang);
+
+const get_socials = (links) =>
+  links.filter(({ type }) => socials.some(({ value }) => type === value));
+
+const all = await collection("linkovi", lang);
+---
+
+<Base
+  title={`${frontmatter.kontakt} | ${frontmatter.studenti_u_blokadi}`}
+  description={frontmatter.kontakt_description}
+>
+  <section>
+    <h1>{frontmatter.kontakt}</h1>
+    <Markdown of={frontmatter.kontakt_opis} />
+
+    <article>
+      <div class="nalozi">
+        {get_socials(sub.linkovi).map((link) => (
+          <a class="button" href={link.link}>
+            <Icon
+              size={ICON_SIZE_LG}
+              name={icons.find((e) => e.value === link.type)?.icon!}
+            />
+          </a>
+        ))}
+      </div>
+    </article>
+
+    <article>
+      <h2>{frontmatter.pojedinacni_fakulteti}</h2>
+      <div class="nalozi">
+        {all
+          .filter(({ data }) => typeof data.type !== "undefined")
+          .filter(({ data }) => type[data.type].sort > 0 - 1)
+          .toSorted(({ data: a }, { data: b }) =>
+            a.type !== b.type
+              ? type[a.type].sort - type[b.type].sort
+              : (a.prikaz ?? "").localeCompare(b.prikaz ?? ""),
+          )
+          .map(({ data }) => (
+            <>
+              <button
+                class={`button ${data.type}`}
+                popovertarget={`popover-${data.link}`}
+              >
+                {data.prikaz ?? data.title}
+              </button>
+              <div id={`popover-${data.link}`} popover>
+                <h3>{data.title}</h3>
+                <ul>
+                  {get_socials(data.linkovi).map((link) => (
+                    <li class="spread">
+                      <a href={link.link}>
+                        {link.type !== "bez" && (
+                          <Icon
+                            size={ICON_SIZE_LG}
+                            name={
+                              icons.find((e) => e.value === link.type)?.icon!
+                            }
+                          />
+                        )}
+                        {link.naslov}
+                      </a>
+                    </li>
+                  ))}
+                  <li>
+                    <button
+                      popovertarget={`popover-${data.link}`}
+                      popovertargetaction="hide"
+                    >
+                      <Icon size={ICON_SIZE_LG} name="mdi:close" />
+                      Zatvori
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </>
+          ))}
+      </div>
+    </article>
+  </section>
+</Base>
+
+<style lang="scss">
+  .nalozi {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .button {
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    flex-grow: 1;
+    border-width: 2px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  article:not(:last-of-type) {
+    margin-bottom: 3rem;
+  }
+
+  @media (max-width: 500px) {
+    .nalozi {
+      gap: 0.5rem;
+    }
+
+    a {
+      padding: 0.5rem 1rem;
+    }
+  }
+
+  [popover] {
+    position: fixed;
+    margin: auto;
+    padding: 2rem;
+    border-radius: 1rem;
+    width: 50rem;
+    max-width: calc(100% - 2rem);
+
+    &:before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    &:after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: var(--background);
+    }
+
+    ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 0;
+    }
+
+    li {
+      display: flex;
+    }
+
+    a,
+    button {
+      display: flex;
+      flex-grow: 1;
+
+      text-decoration: none;
+      color: var(--on-background);
+      align-items: center;
+      gap: 1rem;
+
+      border: 2px solid var(--on-background);
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+
+    :where(a, button):hover {
+      filter: opacity(0.5);
+    }
+  }
+
+  .ub {
+    border-color: hsl(0 82% 43%);
+  }
+  .uu {
+    border-color: hsl(114 87% 31%);
+  }
+  .visa {
+    border-color: hsl(55 42% 52%);
+  }
+  .privatni {
+    border-color: hsl(210 87% 19%);
+  }
+
+  .ub:hover {
+    color: hsl(0 82% 43%);
+  }
+  .uu:hover {
+    color: hsl(114 87% 31%);
+  }
+  .visa:hover {
+    color: hsl(55 42% 52%);
+  }
+  .privatni:hover {
+    color: hsl(210 87% 19%);
+  }
+</style>

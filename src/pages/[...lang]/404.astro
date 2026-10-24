@@ -1,0 +1,34 @@
+---
+import Base from "@layouts/Base.astro";
+
+import { file, langs } from "@scripts/i18n";
+
+export async function getStaticPaths() {
+  return langs.map((lang) => ({ params: { lang } }));
+}
+
+const { lang } = Astro.params;
+
+const { frontmatter } = await file("ostalo", lang);
+const { Content } = await file("not_found", lang);
+---
+
+<Base
+  title={`404 | ${frontmatter.studenti_u_blokadi}`}
+  description={frontmatter.description}
+>
+  <section>
+    <h1>404</h1>
+    <Content />
+  </section>
+</Base>
+
+<style>
+  section {
+    margin-top: 10rem;
+  }
+  h1 {
+    text-align: center;
+    font-size: 10rem;
+  }
+</style>

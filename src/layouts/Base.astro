@@ -1,0 +1,47 @@
+---
+import BaseHead from "@components/BaseHead.astro";
+import Header from "@components/Header.astro";
+import Footer from "@components/Footer.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  class?: string;
+}
+
+const { title, description, image, class: klass } = Astro.props;
+
+const { lang } = Astro.params;
+---
+
+<html {lang} class={klass}>
+  <head>
+    {Astro.params.lang === "root" && <script>
+      const lang = localStorage.getItem("lang") ?? "sr";
+      if (lang !== "sr") {
+        let link = `${window.location.pathname + window.location.search + window.location.hash}`;
+        window.location.replace(`/${lang}${link}`);
+      }
+    </script>}
+    <BaseHead {title} {description} {image} />
+    <slot name="head" />
+  </head>
+  <body>
+    <noscript>
+      <iframe
+        src="https://www.googletagmanager.com/ns.html?id=GTM-TH44SPHK"
+        height="0"
+        width="0"
+        style="display:none;visibility:hidden"
+      />
+    </noscript>
+
+    <Header />
+    <slot name="above" />
+    <main>
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

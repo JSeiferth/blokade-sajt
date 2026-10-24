@@ -1,0 +1,34 @@
+---
+import Card from "@components/Card.astro";
+import Slider from "@components/Slider.astro";
+import { collection } from "@scripts/i18n.ts";
+
+interface Props {
+  text: string;
+}
+
+const { text } = Astro.props;
+
+const { lang } = Astro.params;
+
+const vesti = await collection("vesti", lang);
+---
+
+<Slider>
+  {vesti
+    .sort((a, b) => b.data.live - a.data.live)
+    .slice(0, 3)
+    .map((post) => (
+      <Card
+        link={`${lang === "sr" || lang === "root" ? "" : `/${lang}`}/vesti/${post.id}`}
+        {...post}
+      />
+    ))}
+  <a
+    slot="button"
+    href={`${lang === "sr" || lang === "root" ? "" : `/${lang}`}/vesti`}
+    class="button primary dugme"
+  >
+    {text}
+  </a>
+</Slider>

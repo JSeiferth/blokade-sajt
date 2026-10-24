@@ -1,0 +1,83 @@
+---
+import { file } from "@scripts/i18n.ts";
+import { Icon } from "astro-icon/components";
+
+const { lang } = Astro.params;
+const { frontmatter } = await file("ostalo", lang);
+
+const socialIcons = [
+  {
+    label: "Instagram",
+    icon: "simple-icons:instagram",
+    link: "https://instagram.com/studenti_u_blokadi",
+  },
+  {
+    label: "Twitter",
+    icon: "simple-icons:twitter",
+    link: "https://x.com/studentblokade",
+  },
+  {
+    label: "Facebook",
+    icon: "simple-icons:facebook",
+    link: "https://www.facebook.com/people/Studenti-u-blokadi-UB/61571631694236/",
+  },
+  {
+    label: "Git",
+    icon: "simple-icons:git",
+    link: "https://git.blokade.org/blokade-org/sajt",
+  },
+];
+---
+
+<footer>
+  <div>
+    <a class="clear" href="/">
+      {frontmatter.footer}
+    </a>
+    <div class="socials">
+      {socialIcons.map(({ label, icon, link }) => (
+        <a aria-label={label} href={link} rel="noopener noreferrer">
+          <Icon name={icon} />
+        </a>
+      ))}
+    </div>
+  </div>
+</footer>
+
+<style>
+  footer {
+    display: grid;
+    grid-template-columns: subgrid;
+    padding: 1rem;
+
+    background-color: var(--secondary-dark);
+    color: var(--on-secondary-dark);
+  }
+
+  .socials {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1em;
+  }
+
+  .socials a {
+    color: inherit;
+  }
+
+  .socials a:hover {
+    color: var(--primary-text);
+  }
+
+  footer > div {
+    grid-column: 2 / span 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  a {
+    flex-grow: 1;
+  }
+</style>

@@ -1,0 +1,308 @@
+---
+import { langs, file } from "@scripts/i18n";
+import HeaderLink from "./HeaderLink.astro";
+import { Icon } from "astro-icon/components";
+
+const { lang } = Astro.params;
+
+const { frontmatter } = await file("zaglavlje", lang);
+
+const jezik = (jezik: string) => {
+  let url = Astro.url.pathname.toString();
+  const jezici = langs
+    .filter((a) => typeof a !== "undefined")
+    .sort((a: string, b: string) => b.length - a.length);
+
+  for (const lang of jezici) {
+    url = url.replace(`/${lang}`, "");
+  }
+
+  if (jezik === "sr" || jezik === "root") {
+    return `${url}`;
+  }
+
+  return `/${jezik}${url}`;
+};
+---
+
+<header transition:name="header">
+  <nav>
+    <a class="title" href=`/${lang === "sr" || lang === "root" ? "" : lang}`>
+      {frontmatter.naslov}
+    </a>
+
+    <button
+      aria-label="Open navigation menu"
+      class="mobile center"
+      popovertarget="menu-links"
+    >
+      <Icon name="mdi:hamburger-menu" />
+    </button>
+
+    <div id="menu-links" popover>
+      <nav class="internal-links">
+        <button
+          aria-label="Close navigation menu"
+          class="mobile"
+          popovertarget="menu-links"
+          popovertargetaction="hide"
+        >
+          <Icon name="mdi:close" />
+        </button>
+        {frontmatter.linkovi.map(
+          ({ naziv, link }: { naziv: string; link: string }) => (
+            <HeaderLink
+              href={`${lang === "sr" || lang === "root" ? "" : `/${lang}`}${link}`}
+            >
+              {naziv}
+            </HeaderLink>
+          ),
+        )}
+
+        <button
+          aria-label="Open website language list"
+          class="icon"
+          popovertarget="translate"
+        >
+          <Icon name="mdi:translate" />
+        </button>
+      </nav>
+    </div>
+
+    <div id="translate" popover>
+      <ul>
+        <li>
+          <button
+            aria-label="Close website language list"
+            popovertarget="translate"
+            popovertargetaction="hide"
+          >
+            <Icon name="mdi:close" />
+          </button>
+        </li>
+        <li>
+          <a
+            class="button"
+            onclick="localStorage.setItem('lang', 'sr')"
+            href={jezik("sr")}
+          >
+            Српски (ћирилица)
+          </a>
+        </li>
+        <li>
+          <a
+            class="button"
+            onclick="localStorage.setItem('lang', 'sr-lat')"
+            href={jezik("sr-lat")}
+          >
+            Srpski (latinica)
+          </a>
+        </li>
+        <li>
+          <a
+            class="button"
+            onclick="localStorage.setItem('lang', 'en')"
+            href={jezik("en")}
+          >
+            English
+          </a>
+        </li>
+        <li>
+          <a
+            class="button"
+            onclick="localStorage.setItem('lang', 'hu')"
+            href={jezik("hu")}
+          >
+            Magyar
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<style>
+  header {
+    margin: 0;
+    padding: 0 1em;
+    background: hsla(from var(--background) h s l / 80%);
+    backdrop-filter: blur(6px);
+    box-shadow: var(--box-shadow); /* TODO: box shadow */
+    top: 0;
+    position: sticky;
+    z-index: 100;
+  }
+
+  .title {
+    font-weight: bold;
+  }
+
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  nav :where(a, button) {
+    color: var(--on-background);
+  }
+
+  nav > a {
+    border-bottom: 4px solid transparent;
+  }
+
+  nav a {
+    padding: 1rem 0.75rem;
+    text-decoration: none;
+  }
+
+  nav a:hover {
+    background-color: hsla(from var(--secondary-background) h s l / 90%);
+    color: var(--on-secondary);
+  }
+
+  nav button {
+    background: none;
+    border: none;
+    padding: 0 0 0 0.5em;
+    font: inherit;
+    outline: inherit;
+    cursor: pointer;
+  }
+
+  nav a.active {
+    border-bottom-color: var(--primary);
+  }
+
+  .social-links,
+  .social-links a {
+    display: flex;
+  }
+
+  @media (max-width: 720px) {
+    .social-links {
+      display: none;
+    }
+  }
+
+  button {
+    display: block;
+  }
+
+  .icon {
+    display: grid;
+    align-items: center;
+  }
+
+  #menu-links {
+    position: fixed;
+    margin: 0;
+    border: none;
+    inset: unset;
+    top: 0;
+    right: 0;
+    height: 100vh;
+    background: hsla(from var(--background) h s l / 80%);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 0 2rem rgba(0, 0, 0, 0.2);
+
+    transition: translate 0.2s;
+    @starting-style {
+      display: block;
+      translate: 100% 0;
+    }
+  }
+
+  #menu-links::backdrop {
+    display: block;
+    opacity: 0;
+  }
+
+  [popover]::backdrop {
+    transition: opacity 0.2s;
+  }
+
+  [popover]:is(:popover-open, .\:popover-open)::backdrop {
+    opacity: 1;
+    pointer-events: none;
+    background-color: rgba(0, 0, 0, 0.2);
+
+    @starting-style {
+      opacity: 0;
+    }
+  }
+
+  #menu-links:is(:popover-open, .\:popover-open) nav {
+    padding-block: 1rem;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #menu-links:is(:popover-open, .\:popover-open) a {
+    padding: 0.5rem 2rem;
+    border-bottom: 4px solid transparent;
+    border-left: 4px solid transparent;
+  }
+
+  #menu-links:is(:popover-open, .\:popover-open) a.active {
+    border-left-color: var(--primary);
+  }
+
+  #menu-links:is(:popover-open, .\:popover-open) button {
+    padding: 0.5rem 2rem;
+  }
+
+  #translate {
+    margin: auto;
+    transition: translate 0.2s;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    flex-direction: column;
+    gap: 1rem;
+    background-color: var(--background);
+
+    @starting-style {
+      display: flex;
+      translate: 0 2rem;
+    }
+  }
+
+  #translate button {
+    margin-left: auto;
+  }
+
+  #translate ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 0;
+  }
+
+  #translate a {
+    display: flex;
+  }
+
+  button:hover :global(svg) {
+    color: var(--primary-dark);
+  }
+
+  .center {
+    display: grid;
+    place-content: center;
+  }
+
+  @media (min-width: 1050px) {
+    #menu-links {
+      display: contents;
+    }
+
+    button.mobile {
+      display: none;
+    }
+
+    button[popovertarget="translate"] {
+      margin-top: unset;
+    }
+  }
+</style>

@@ -1,0 +1,38 @@
+---
+import Base from "@layouts/Base.astro";
+import { collection, file, langs } from "@scripts/i18n";
+
+import { Markdown } from "@mashehu/astropub-md";
+const { lang } = Astro.params;
+
+const afere = await collection("afere", lang);
+
+const { frontmatter } = await file("ostalo", lang);
+
+export async function getStaticPaths() {
+  return langs.map((lang) => ({ params: { lang } }));
+}
+---
+
+<Base
+  title={`${frontmatter.afere} | ${frontmatter.studenti_u_blokadi}`}
+  description={frontmatter.afere_description}
+>
+  <div class="flex">
+    <h1>{frontmatter.afere}</h1>
+  </div>
+  <section>
+    <div class="details-list">
+      {afere.map((afera) => (
+        <details>
+          <summary>
+            <strong>{afera.data.title}</strong>
+          </summary>
+          <div class="content">
+            <Markdown of={afera.body!} />
+          </div>
+        </details>
+      ))}
+    </div>
+  </section>
+</Base>

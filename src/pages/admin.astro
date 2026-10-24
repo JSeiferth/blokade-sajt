@@ -1,0 +1,374 @@
+---
+import { AstroFont } from "astro-font";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <link href="/admin/config.yml" type="text/yaml" rel="cms-config-url" />
+    <title>Content Manager</title>
+    <AstroFont
+      config={[
+        {
+          src: [],
+          preload: true,
+          display: "swap",
+          name: "Golos Text",
+          fallback: "sans-serif",
+          fetch: true,
+          verbose: true,
+          cacheDir: "cache",
+          googleFontsURL:
+            "https://fonts.googleapis.com/css2?family=Golos+Text:wght@400..900&display=swap",
+        },
+      ]}
+    />
+    <style>
+      body {
+        --sui-font-family-default: "Golos Text";
+        --sui-font-weight-normal: 400;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      import {
+        type Collection,
+        type EditorComponentMode,
+        type Field,
+        init,
+        registerEditorComponent,
+      } from "@sveltia/cms";
+      import { all } from "@scripts/collections";
+
+      const registerMdxComponent = ({
+        id,
+        label,
+        fields,
+        icon,
+        mode = "block",
+        collapsed = false,
+        summary,
+        toPreview,
+      }: {
+        id: string;
+        label: string;
+        icon?: string;
+        fields: Field[];
+        mode?: EditorComponentMode;
+        collapsed?: boolean;
+        summary?: string;
+        toPreview?:
+          ((props: Record<string, any>) => string | HTMLElement) | undefined;
+      }) => {
+        registerEditorComponent({
+          id,
+          label,
+          icon,
+          fields,
+          mode,
+          collapsed,
+          summary,
+          pattern: new RegExp(
+            String.raw`<${label}\s*${fields.map((field) => String.raw`(?:${field.name}="(?<${field.name}>.*?)")?\s*`).join("")}\/>`,
+          ),
+          toBlock: (fields) =>
+            `<${label} ${Object.keys(fields)
+              .map((field) => `${field}="${fields[field]}"`)
+              .join(" ")} \/>`,
+          toPreview:
+            typeof toPreview !== "undefined"
+              ? toPreview
+              : (fields) =>
+                  `[${label} ${Object.keys(fields)
+                    .map((field) => `${field}="${fields[field]}"`)
+                    .join(" ")}]`,
+        });
+      };
+
+      registerEditorComponent({
+        id: "icon",
+        label: "Icon",
+        fields: [{ name: "name", widget: "string" }],
+        icon: "info_i",
+        pattern: /<Icon name="(?<name>.*?)" \/>/,
+        mode: "dialog",
+        toBlock: ({ name }) => `<Icon name="${name}" />`,
+        toPreview: ({ name }) => `[${name}]`,
+      });
+
+      registerEditorComponent({
+        id: "section",
+        label: "Section",
+        fields: [
+          { name: "id", widget: "string", required: false },
+          { name: "content", widget: "richtext" },
+        ],
+        icon: "format_align_justify",
+        collapsed: true,
+        pattern:
+          /<section(?: id="(?<id>.*?)")?>\n\s*(?<content>[\s\S]+?)\s*\n<\/section>/,
+        toBlock: ({ content, id }) =>
+          `<section${id && ' id="' + id + '"'}>\n${content}\n</section>`,
+        toPreview: ({ content, id }) => `-- section ${id}\n${content}\n\n`,
+      });
+
+      registerEditorComponent({
+        id: "details",
+        label: "Details",
+        fields: [
+          { name: "summary", widget: "richtext" },
+          { name: "details", widget: "richtext" },
+        ],
+        icon: "format_align_justify",
+        collapsed: true,
+        pattern:
+          /<details>\s*<summary>\s*(?<summary>[\s\S]+?)\s*<\/summary>\s*<div class="content">\s*(?<details>[\s\S]+?)\s*<\/div>\s*<\/details>/,
+        toBlock: ({ summary, details }) =>
+          `<details>\n<summary>${summary}</summary>\n<div class="content">\n${details}\n</div>\n</details>`,
+        toPreview: ({ summary }) => `--- summary ${summary}\n\n`,
+      });
+
+      registerEditorComponent({
+        id: "article",
+        label: "Article",
+        fields: [
+          { name: "id", widget: "string", required: false },
+          { name: "content", widget: "richtext" },
+        ],
+        icon: "format_align_justify",
+        collapsed: true,
+        pattern:
+          /<article(?: id="(?<id>.*?)")?>\n\s*(?<content>[\s\S]+?)\s*\n<\/article>/,
+        toBlock: ({ content, id }) =>
+          `<article${id && ' id="' + id + '"'}>\n${content}\n</article>`,
+        toPreview: ({ content, id }) => `--- article ${id}\n${content}\n\n`,
+      });
+
+      const colors = () => ({
+        widget: "select",
+        name: "color",
+        label: "Boja",
+        required: false,
+        options: [
+          {
+            value: "first",
+            label: "Prva",
+          },
+          {
+            value: "second",
+            label: "Druga",
+          },
+          {
+            value: "third",
+            label: "Treca",
+          },
+          {
+            value: "fourth",
+            label: "Cetrvrta",
+          },
+          {
+            value: "fifth",
+            label: "Peta",
+          },
+          {
+            value: "sixth",
+            label: "Šesta",
+          },
+        ],
+        default: "first",
+      });
+
+      registerEditorComponent({
+        id: "mapa",
+        label: "Mapa",
+        fields: [
+          {
+            widget: "object",
+            name: "data",
+            label: "Mapa",
+            fields: [
+              {
+                widget: "number",
+                name: "coords_lat",
+                label: "Geografska širina",
+                required: true,
+                default: 44.8118,
+                value_type: "float",
+              },
+              {
+                widget: "number",
+                name: "coords_long",
+                label: "Geografska dužina",
+                required: true,
+                default: 20.4659,
+                value_type: "float",
+              },
+              {
+                widget: "number",
+                name: "zoom",
+                label: "Zoom",
+                required: true,
+                default: 12,
+                value_type: "int",
+              },
+              {
+                widget: "list",
+                name: "markers",
+                label: "Markeri",
+                required: false,
+                label_singular: "Marker",
+                fields: [
+                  {
+                    widget: "number",
+                    name: "coords_lat",
+                    label: "Geografska širina",
+                    required: true,
+                    value_type: "float",
+                  },
+                  {
+                    widget: "number",
+                    name: "coords_long",
+                    label: "Geografska dužina",
+                    required: true,
+                    value_type: "float",
+                  },
+                  {
+                    widget: "markdown",
+                    name: "text",
+                    label: "Tekst",
+                    required: true,
+                  },
+                  colors(),
+                ],
+              },
+              {
+                widget: "list",
+                name: "layers",
+                label: "Layer",
+                required: false,
+                i18n: "duplicate",
+                label_singular: "Layer",
+                add_to_top: false,
+                field: {
+                  widget: "string",
+                  name: "layer",
+                  label: "Layer",
+                  required: true,
+                  type: "text",
+                },
+              },
+              {
+                widget: "list",
+                name: "track",
+                label: "Track",
+                required: false,
+                add_to_top: false,
+                fields: [
+                  {
+                    widget: "string",
+                    name: "address",
+                    label: "Address",
+                    required: true,
+                    type: "text",
+                  },
+                  colors(),
+                ],
+              },
+            ],
+          },
+        ],
+        icon: "info_i",
+        pattern: /<Mapa data='(?<data>.*?)' \/>/,
+        mode: "dialog",
+        toBlock: ({ data }) => `<Mapa data='${JSON.stringify(data)}' />`,
+        fromBlock: (match) => ({ data: JSON.parse(match[1]) }),
+        toPreview: () => `[Mapa]`,
+      });
+
+      registerMdxComponent({
+        id: "link",
+        label: "SectionLink",
+        icon: "link_2",
+        fields: [
+          { name: "link", widget: "string" },
+          { name: "text", widget: "string" },
+        ],
+        mode: "dialog",
+        summary: "{{text}} -> {{link}}",
+        toPreview: ({ link, text }) => `[[${text}](${link})]`,
+      });
+
+      registerMdxComponent({
+        id: "vesti",
+        label: "Vesti",
+        icon: "newspaper",
+        mode: "dialog",
+        fields: [{ name: "text", widget: "string" }],
+        summary: "{{text}}",
+      });
+
+      registerMdxComponent({
+        id: "video",
+        label: "Video",
+        icon: "videocam",
+        mode: "dialog",
+        fields: [{ name: "id", widget: "string" }],
+        summary: "[video: {{id}}]",
+      });
+
+      init({
+        config: {
+          load_config_file: false,
+          app_title: "Studenti pobeđuju",
+          site_url: "https://studenti.org.rs",
+          logo: { src: "/favicon.svg" },
+          media_folder: "/src/assets/images/",
+          public_folder: "@assets/images/",
+          i18n: {
+            structure: "multiple_folders",
+            locales: ["sr", "en", "hu"],
+            initial_locales: ["sr"],
+            default_locale: "sr",
+          },
+          backend: {
+            name: "gitea",
+            repo: "blokade-org/sajt",
+            branch: "main",
+            base_url: "https://git.blokade.org",
+            api_root: "https://git.blokade.org/api/v1",
+            app_id: "50977ec5-a399-43d1-b5d5-437b91696963",
+          },
+          asset_collections: [
+            {
+              name: "download",
+              icon: "download",
+              label: "Download",
+              media_folder: "/public/download",
+              public_folder: "/download",
+            },
+          ],
+          media_libraries: {
+            default: {
+              config: {
+                transformations: {
+                  raster_image: {
+                    format: "webp",
+                    quality: 85,
+                    width: 1920,
+                    height: 1920,
+                  },
+                  svg: { optimize: true },
+                },
+              },
+            },
+          },
+          output: { omit_empty_optional_fields: true },
+          collections: all.make_cms() as Collection[],
+        },
+      });
+    </script>
+  </body>
+</html>
